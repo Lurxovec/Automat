@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lucky Spin</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.5/Babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center h-screen">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const LuckySpin = () => {
+      const [reels, setReels] = useState(['🍎', '🍎', '🍎']); // Aktuální symboly na válcích
+      const [balance, setBalance] = useState(1000); // Body hráče
+      const [bet, setBet] = useState(10); // Aktuální sázka
+      const [spinning, setSpinning] = useState(false); // Stav točení
+      const [lastWin, setLastWin] = useState(0); // Poslední výhra
+      const [freeSpins, setFreeSpins] = useState(0); // Počet točení zdarma
+      const [jackpotStreak, setJackpotStreak] = useState(0); // Počítadlo pro jackpot
+
+      const symbols = ['🍎', '🍋', '🔔', '⭐', '7']; // Možné symboly
+
+      // Funkce pro výpočet výhry
+      const calculateWin = (result) => {
+        if (result[0] === result[1] && result[1] === result[2]) {
+          if (result[0] === '7') {
+            setJackpotStreak((prev) => prev + 1);
+            return 100 * bet; // 3× sedmička
+          }
+          if (result[0] === '⭐') return 50 * bet; // 3× hvězda
+          if (result[0] === '🔔') return 20 * bet; // 3× zvonek
+          if (result[0] === '🍎' || result[0] === '🍋') return 10 * bet; // 3× ovoce
+        } else if (result[0] === '7' && result[1] === '7') {
+          return 5 * bet; // 2× sedmička
+        }
+        return 0;
+      };
+
+      // Funkce pro točení válců
+      const spin = () => {
+        if (balance < bet || spinning) return;
+        setSpinning(true);
+        setBalance((prev) => prev - bet);
+
+        // Simulace točení
+        let spins = 0;
+        const interval = setInterval(() => {
+          setReels([
+            symbols[Math.floor(Math.random() * symbols.length)],
+            symbols[Math.floor(Math.random() * symbols.length)],
+            symbols[Math.floor(Math.random() * symbols.length)],
+          ]);
+          spins++;
+          if (spins > 10) {
+            clearInterval(interval);
+            const finalReels = [
+              symbols[Math.floor(Math.random() * symbols.length)],
+              symbols[Math.floor(Math.random() * symbols.length)],
+              symbols[Math.floor(Math.random() * symbols.length)],
+            ];
+            setReels(finalReels);
+            const win = calculateWin(finalReels);
+            setLastWin(win);
+            setBalance((prev) => prev + win);
+
+            // Bonusové funkce
+            if (finalReels[0] === '⭐' && finalReels[1] === '⭐' && finalReels[2] === '⭐') {
+              setFreeSpins((prev) => prev + 5);
+            }
+            if (Math.random() < 0.1) {
+              setLastWin((prev) => prev * 2); // Náhodný 2× multiplikátor
+              setBalance((prev) => prev + win);
+            }
+            if (jackpotStreak >= 3) {
+              setBalance((prev) => prev + 1000);
+              setJackpotStreak(0);
+            }
+
+            setSpinning(false);
+            if (freeSpins > 0) {
+              setFreeSpins((prev) => prev - 1);
+              setTimeout(spin, 1000); // Automatické točení zdarma
+            }
+          }
+        }, 100);
+      };
+
+      // Reset bodů
+      const resetBalance = () => {
+        setBalance(1000);
+        setJackpotStreak(0);
+        setFreeSpins(0);
+      };
+
+      return (
+        <div className="flex flex-col items-center justify-center p-4 max-w-md mx-auto">
+          <h1 className="text-3xl font-bold mb-4">Lucky Spin</h1>
+          <div className="bg-gray-800 p-4 rounded-lg w-full">
+            {/* Válce */}
+            <div className="flex justify-between text-4xl mb-4">
+              {reels.map((symbol, index) => (
+                <div
+                  key={index}
+                  className={`w-16 h-16 flex items-center justify-center border-2 border-yellow-500 rounded ${
+                    spinning ? 'animate-spin' : ''
+                  }`}
+                >
+                  {symbol}
+                </div>
+              ))}
+            </div>
+            {/* Informace */}
+            <div className="text-center mb-4">
+              <p>Zůstatek: <span className="font-bold">{balance}</span> bodů</p>
+              <p>Sázka: <span className="font-bold">{bet}</span> bodů</p>
+              <p>Poslední výhra: <span className="font-bold">{lastWin}</span> bodů</p>
+              {freeSpins > 0 && <p>Tocení zdarma: <span className="font-bold">{freeSpins}</span></p>}
+            </div>
+            {/* Ovládání sázky */}
+            <div className="flex justify-center mb-4">
+              <button
+                onClick={() => setBet((prev) => Math.max(10, prev - 10))}
+                className="bg-blue-500 text-white px-4 py-2 rounded mr-2"
+              >
+                −
+              </button>
+              <span className="text-xl">{bet}</span>
+              <button
+                onClick={() => setBet((prev) => Math.min(50, prev + 10))}
+                className="bg-blue-500 text-white px-4 py-2 rounded ml-2"
+              >
+                +
+              </button>
+            </div>
+            {/* Tlačítko točení */}
+            <button
+              onClick={spin}
+              disabled={spinning || balance < bet}
+              className={`w-full py-3 rounded text-xl font-bold ${
+                spinning || balance < bet
+                  ? 'bg-gray-500 cursor-not-allowed'
+                  : 'bg-green-500 hover:bg-green-600'
+              }`}
+            >
+              {spinning ? 'Točí se...' : 'Točit!'}
+            </button>
+            {/* Reset tlačítko */}
+            {balance < bet && (
+              <button
+                onClick={resetBalance}
+                className="w-full py-3 mt-2 bg-red-500 hover:bg-red-600 rounded text-xl font-bold"
+              >
+                Doplnit body
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    ReactDOM.render(<LuckySpin />, document.getElementById('root'));
+  </script>
+</body>
+</html>
